@@ -5,6 +5,7 @@ import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
+import kotlin.math.sin
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -34,7 +35,7 @@ class GLRenderer : GLSurfaceView.Renderer {
     // =========================================================
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        GLES30.glClearColor(0.05f, 0.05f, 0.15f, 1f)
+        GLES30.glClearColor(0.6f, 0.8f, 0.95f, 1f)
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
 
         // =====================================================
@@ -86,22 +87,27 @@ class GLRenderer : GLSurfaceView.Renderer {
         // =====================================================
 
         val treeGenerator = TreeGenerator(
-            segmentLength = 0.35f,
-            segmentRadius = 0.05f,
-            branchAngle = 25f
+            segmentLength = 0.32f,
+            segmentRadius = 0.06f,
+            branchAngle = 22f,
+            leafSize = 0.12f
         )
 
         val axiom = "F"
         val rules = mapOf(
-            // Řidší, asymetrická jabloň
-            'F' to "F[+F][&F]"
+            // Plynulejší koruna s jemným ohybem
+            'F' to "F[+F][-F][&F]F"
+        )
+        val finalRules = mapOf(
+            'F' to "F[L][+L][-L]"
         )
 
-        val iterations = 5
+        val iterations = 4
 
         val (vBuf, iBuf) = treeGenerator.generate(
             axiom = axiom,
             rules = rules,
+            finalRules = finalRules,
             iterations = iterations
         )
 
@@ -156,12 +162,14 @@ class GLRenderer : GLSurfaceView.Renderer {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
 
         val time = (System.nanoTime() - startTimeNs) / 1_000_000_000f
-        val angle = time * 20f
+        val sway = sin(time * 0.6f) * 4f
+        val swaySecondary = sin(time * 0.9f + 1.2f) * 2f
 
         Matrix.setIdentityM(modelMatrix, 0)
-        Matrix.translateM(modelMatrix, 0, 0f, 0.8f, 0f) //ground
-        Matrix.scaleM(modelMatrix, 0, 3.0f, 3.0f, 3.0f)
-        Matrix.rotateM(modelMatrix, 0, angle, 0f, 1f, 0f)
+        Matrix.translateM(modelMatrix, 0, 0f, 0.6f, 0f)
+        Matrix.scaleM(modelMatrix, 0, 2.6f, 2.6f, 2.6f)
+        Matrix.rotateM(modelMatrix, 0, sway, 0f, 0f, 1f)
+        Matrix.rotateM(modelMatrix, 0, swaySecondary, 1f, 0f, 0f)
 
 
         Matrix.multiplyMM(mvpMatrix, 0, viewMatrix, 0, modelMatrix, 0)

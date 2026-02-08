@@ -19,6 +19,7 @@ class TreeGenerator(
     private val segmentLength: Float = 0.3f,
     private val segmentRadius: Float = 0.05f,
     private val branchAngle: Float = 25f,
+    private val leafSize: Float = 0.12f,
 ) {
 
     private val vertices = mutableListOf<Float>()
@@ -28,13 +29,14 @@ class TreeGenerator(
     fun generate(
         axiom: String,
         rules: Map<Char, String>,
+        finalRules: Map<Char, String> = rules,
         iterations: Int
     ): Pair<FloatBuffer, IntBuffer> {
 
         vertices.clear()
         indices.clear()
 
-        val lsystemString = generateLSystem(axiom, rules, iterations)
+        val lsystemString = generateLSystem(axiom, rules, finalRules, iterations)
 
         val stack = mutableListOf<TurtleState>()
 
@@ -50,7 +52,11 @@ class TreeGenerator(
             when (c) {
 
                 'F' -> {
-                    val color = floatArrayOf(0.4f, 0.7f, 0.3f)
+                    val trunkColor = floatArrayOf(
+                        0.45f + random.nextFloat() * 0.05f,
+                        0.28f + random.nextFloat() * 0.05f,
+                        0.16f + random.nextFloat() * 0.04f
+                    )
 
                     addCylinder(
                         startPos = position,
@@ -58,7 +64,7 @@ class TreeGenerator(
                         length = currentLength,
                         radius = currentRadius,
                         sides = 8,
-                        color = color
+                        color = trunkColor
                     )
 
                     // posun turtle vpřed (lokální Y osa)
@@ -136,6 +142,21 @@ class TreeGenerator(
                     currentLength = s.length
                     currentRadius = s.radius
                 }
+
+                'L' -> {
+                    val leafColor = floatArrayOf(
+                        0.25f + random.nextFloat() * 0.15f,
+                        0.65f + random.nextFloat() * 0.2f,
+                        0.3f + random.nextFloat() * 0.15f
+                    )
+                    addSphere(
+                        center = position,
+                        radius = leafSize * (0.7f + random.nextFloat() * 0.6f),
+                        stacks = 5,
+                        slices = 6,
+                        color = leafColor
+                    )
+                }
             }
         }
 
@@ -157,13 +178,15 @@ class TreeGenerator(
     private fun generateLSystem(
         axiom: String,
         rules: Map<Char, String>,
+        finalRules: Map<Char, String>,
         iterations: Int
     ): String {
         var current = axiom
-        repeat(iterations) {
+        repeat(iterations) { iteration ->
             val sb = StringBuilder()
             for (c in current) {
-                sb.append(rules.getOrDefault(c, c.toString()))
+                val activeRules = if (iteration == iterations - 1) finalRules else rules
+                sb.append(activeRules.getOrDefault(c, c.toString()))
             }
             current = sb.toString()
         }
@@ -227,5 +250,51 @@ class TreeGenerator(
         vertices.add(color[0])
         vertices.add(color[1])
         vertices.add(color[2])
+    }
+
+    private fun addSphere(
+        center: FloatArray,
+        radius: Float,
+        stacks: Int,
+        slices: Int,
+        color: FloatArray
+    ) {
+        val baseIndex = vertices.size / 6
+        for (i in 0..stacks) {
+            val v = i / stacks.toFloat()
+            val phi = Math.PI * v
+            val y = cos(phi).toFloat()
+            val r = sin(phi).toFloat()
+
+            for (j in 0..slices) {
+                val u = j / slices.toFloat()
+                val theta = 2.0 * Math.PI * u
+                val x = (cos(theta) * r).toFloat()
+                val z = (sin(theta) * r).toFloat()
+
+                vertices.add(center[0] + x * radius)
+                vertices.add(center[1] + y * radius)
+                vertices.add(center[2] + z * radius)
+
+                vertices.add(color[0])
+                vertices.add(color[1])
+                vertices.add(color[2])
+            }
+        }
+
+        val ring = slices + 1
+        for (i in 0 until stacks) {
+            for (j in 0 until slices) {
+                val i0 = baseIndex + i * ring + j
+                val i1 = i0 + ring
+                indices.add(i0)
+                indices.add(i1)
+                indices.add(i0 + 1)
+
+                indices.add(i0 + 1)
+                indices.add(i1)
+                indices.add(i1 + 1)
+            }
+        }
     }
 }
